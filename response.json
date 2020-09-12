@@ -1,0 +1,22 @@
+{
+    "overview": {
+        "lastUpdateTime": "2020-09-11 19:49:53",
+        "lifeTimeData": {
+            "energy": 3562539.0,
+            "revenue": 747.78687
+        },
+        "lastYearData": {
+            "energy": 3560661.0
+        },
+        "lastMonthData": {
+            "energy": 136792.0
+        },
+        "lastDayData": {
+            "energy": 17205.0
+        },
+        "currentPower": {
+            "power": 0.0
+        },
+        "measuredBy": "INVERTER"
+    }
+}
