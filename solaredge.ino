@@ -49,10 +49,10 @@
 
 #include <WiFiClientSecureBearSSL.h>
 
-
 //define your default values here, if there are different values in config.json, they are overwritten.
 char APIkey[33] = "L4QLVQ1LOKCQX2193VSEICXW61NP6B1O";
 char siteID[8] = "1234567";
+
 char static_ip[18] = "192.168.0.58";
 char static_gw[18] = "192.168.0.1";
 char static_sn[18] = "255.255.255.0";
@@ -74,7 +74,6 @@ bool reset2 = false;
 int led = 4;
 int meteradapter = 5;
 
-
 String todayval = "Not Connected Yet";
 String monthval= "Not Connected Yet";
 
@@ -83,9 +82,9 @@ unsigned long currentMillis;
 unsigned long period = 2000;  //time between pulses, initial 2000 ms
 unsigned long startMillis2;  //some global variables available anywhere in the program
 unsigned long currentMillis2;
-unsigned long InitialGetdatafrequency = 20000; //only first time to get data from Growatt, then time will be set to Getdatafrequency)
-unsigned long Getdatafrequency = 60000; //time between data transfers from GroWatt
-unsigned long Getdatafrequencyset = 0; //time between data transfers from GroWatt
+unsigned long InitialGetdatafrequency = 20000; //only first time to get data from solaredge, then time will be set to Getdatafrequency)
+unsigned long Getdatafrequency = 60000; //time between data transfers from solaredge
+unsigned long Getdatafrequencyset = 0; //time between data transfers from solaredge
 unsigned long timebetweenpulses = 2000; //time between pulses calculated (initial)
 bool shouldSaveConfig = false;
 
@@ -103,7 +102,7 @@ bool newday = false;    // must be false first time
 WiFiServer server(80);
 String header_web = "";
 
-// Root CA - used by solar edge
+// Root CA - used by solaredge valid till 2031
 const char* root_ca= \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n" \
@@ -293,18 +292,19 @@ void setup() {
 
 
 void webserver(){
-		// Set web server port number to 80 and create a webpage
+	// Set web server port number to 80 and create a webpage
 	WiFiClient client = server.available();   // Listen for incoming clients
 
-	if (client) {                             // If a new client connects,
-		Serial.println("New Client.");          // print a message out in the serial port
-		String currentLine = "";                // make a String to hold incoming data from the client
-		while (client.connected()) {            // loop while the client's connected
-			if (client.available()) {             // if there's bytes to read from the client,
-				char c = client.read();             // read a byte, then
-				//Serial.write(c);                    // print it out the serial monitor
+	if (client) {   
+		// A new client connects,
+		Serial.println("New Client.");  
+		String currentLine = "";                
+		while (client.connected()) {            
+			if (client.available()) {           
+				char c = client.read();         
+				//Serial.write(c);              
 				header_web += c;
-				if (c == '\n') {                    // if the byte is a newline character
+				if (c == '\n') {                
 					if (currentLine.length() == 0) {
 						client.println("HTTP/1.1 200 OK");
 						client.println("Content-type:text/html");
@@ -319,7 +319,6 @@ void webserver(){
 						client.println("p.small {line-height: 1; font-size:70%;}");
 						client.println(".button { background-color: #195B6A; border: none; color: white; padding: 10px 20px;");
 						client.println("text-decoration: none; font-size: 24px; margin: 2px; cursor: pointer;}</style>");
-
 
 						client.println("<script type=\"text/JavaScript\">");
 						client.println("<!--");
@@ -398,13 +397,12 @@ void webserver(){
 							client.println("</body></html>");
 						}
 
-						// Break out of the while loop
 						break;
 					} else { // if you got a newline, then clear currentLine
 						currentLine = "";
 					}
 				} else if (c != '\r') {  // if you got anything else but a carriage return character,
-					currentLine += c;      // add it to the end of the currentLine
+					currentLine += c;   // add it to the end of the currentLine
 				}
 			}
 		}
@@ -420,7 +418,6 @@ void webserver(){
 
 void getdata(){
 	//get new data from the solaredge server.
-
 	HTTPClient http;
 	const char * headerkeys[] = {"User-Agent","Set-Cookie","Cookie","Date","Content-Type","Connection"} ;
 	size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
@@ -428,13 +425,12 @@ void getdata(){
 	apiurl = "https://monitoringapi.solaredge.com/site/" +String(siteID) +"/overview.json?api_key=" +String(APIkey);
 	Serial.println(apiurl);
 
-	http.begin(apiurl,root_ca); 										//Specify request destination (https)
-	int httpCode = http.GET(); 											//Send the request
+	http.begin(apiurl, root_ca); 
+	int httpCode = http.GET();
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
 		ConnectionPossible = true;
-
-		String payload = http.getString(); 								//Get the request response payload
-		Serial.println(payload); 										//Print the response payload
+		String payload = http.getString();
+		Serial.println(payload);
 
 		const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
 		DynamicJsonBuffer jsonBuffer(capacity);
@@ -457,7 +453,8 @@ void getdata(){
 			Serial.println(NewDayTotal);
 
 
-			if (NewDayTotal == 0) {             //it will be a new day or a new counting period.
+			if (NewDayTotal == 0) { 
+				// it will be a new day or a new counting period.
 				Serial.println("A new day has started.");
 				newday = true;
 				PrevDayTotal=0;
@@ -495,8 +492,8 @@ void getdata(){
 				Serial.println(PowerCorrection);
 
 				MaxNumberofCorrections = NumberofPeriodSinceUpdate;
-
-				NumberofPeriodSinceUpdate=0;             //reset the number of periods since last update
+ 				//reset the number of periods since last update
+				NumberofPeriodSinceUpdate=0;
 				PrevDayTotal = NewDayTotal;
 			}
 
@@ -518,34 +515,37 @@ void getdata(){
 				}
 				Serial.print("CorrectedPowerNextPeriod :");
 				Serial.println(CorrectedPowerNextPeriod);
-
-				timebetweenpulses = 3600000/CorrectedPowerNextPeriod; //calculation of the interval
+ 				
+				//calculation of the interval
+				timebetweenpulses = 3600000/CorrectedPowerNextPeriod;
 				Serial.print("timebetweenpulses :");
 				Serial.println(timebetweenpulses);
 			}
 			else{
-				timebetweenpulses = 360000; //1 hour interval when ActualPower = 0
+				//1 hour interval when ActualPower = 0
+				timebetweenpulses = 360000; 
 				CorrectedPowerNextPeriod = 0;
 				PowerCorrection = 0;
 			}
 			Getdatafrequencyset = Getdatafrequency;
 		}
 	}
-	http.end(); //Close connection
+	http.end(); 
 }
 
 void blinkled() {
-	digitalWrite(led, HIGH);   // turn the LED on (HIGH is the voltage level)
+	digitalWrite(led, HIGH);   
 	digitalWrite(meteradapter, HIGH);
-	delay(100);               // wait for some time
-	digitalWrite(led, LOW);    // turn the LED off by making the voltage LOW
+	delay(100);               
+	digitalWrite(led, LOW);   
 	digitalWrite(meteradapter, LOW);
 }
 
 void loop() {
 	webserver();
 
-	if ((reset1) && (reset2)) { //all reset pages have been acknowledged and reset parameters have been set from the webpages
+	if ((reset1) && (reset2)) { 
+		//all reset pages have been acknowledged and reset parameters have been set from the webpages
 		delay(2000);
 		Serial.println("Reset requested");
 		Serial.println("deleting configuration file");
@@ -557,7 +557,8 @@ void loop() {
 	}
 
 	currentMillis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
-	if (currentMillis - startMillis >= period) { //test whether the pulsetime has eleapsed
+	if (currentMillis - startMillis >= period) { 
+		//pulsetime has eleapsed
 
 		Serial.print("PulsesGen.: ");Serial.print(PulsesGenerated);
 		Serial.print(" ** EnergyDay: ");Serial.print(EnergyfromDaytotal);
@@ -576,9 +577,10 @@ void loop() {
 
 	currentMillis2 = millis();  //get the current "time" (actually the number of milliseconds since the program started)
 	if (currentMillis2 - startMillis2 >= Getdatafrequencyset) { //test whether the period has elapsed to get new data from the server
-		if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+		if (WiFi.status() == WL_CONNECTED) { 
+			//Check WiFi connection status = connected
 			getdata();
 		}
-		 startMillis2 = currentMillis2;  //IMPORTANT to save the start time of the current LED state.
+		 startMillis2 = currentMillis2;  //save the start time of the current LED state.
 	}
 }
