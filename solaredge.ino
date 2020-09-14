@@ -1,37 +1,41 @@
 /******************************************************************************************
  * SolarBridge - SolarEdge 1.0 (MvdB)
  * Forked from SolarBridge v2.2.1 by Oepi-Loepi
- * 
- * 
+ *
+ *
  * Version 2.1, corrected for daily totals
  * Version 2.2, problem wih some logins solved
  * Version 2.2.1, minor issue improved. When power is 0, the interval was set to 1 hr so no pulses were set during this time even when power returns
- * 
+ *
  * All rights reserved
  * Do not use for commercial purposes
- * 
+ *
  * Solar Bridge for SolarEdge solar converters
  * This bridge will get the data from the SolarEdge web interface (API) and create S0 pulses and led flashes
  * Each pulse/flash will suggest 1 Watt
- * 
- * Library versions 
+ *
+ * Library versions
  *  ESP board 2.5.2
  *  ArduinoJson 5.13.5
  *  WifiManager 0.15.0
- * 
- * 
- * On GPIO 4 a resistor (330 ohm and red LED are connected in series 
+ *
+ *
+ * On GPIO 4 a resistor (330 ohm and red LED are connected in series
  * PIN D2 ----  Resistor 33Ohm) ---- (Long LED lead ---- LED ---- Short LED Lead) ----- GND
- * 
+ *
  * On GPIO 5 a PC817 optocoupler is connected
  * PIN D1 ----  PC817 (anode, pin 1, spot)
  * GND -------  PC817 (cathode, pin 2)
- * 
+ *
  * Pin 3 and 4 of the PC817 will be a potential free contact
- * 
- * After uploading the sketch to the Wemos D1 mini, connect to the AutoConnectAP wifi. 
+ *
+ * After uploading the sketch to the Wemos D1 mini, connect to the AutoConnectAP wifi.
  * Goto 192.168.4.1 in a webbrowser and fill in all data including API Key.
- * 
+ *
+ * https fingerprints
+ * SHA 256: 5B 8C 38 37 29 89 84 6F 24 9B A7 EE 85 21 C3 A7 EB 7C C3 37 6D 56 36 A5 23 0A 31 CE 6A 90 9E C8
+ * SHA 1:   69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF
+ *
 */
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
@@ -42,6 +46,12 @@
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include "ESP8266HTTPClient.h"
 #include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
+
+#include <WiFiClientSecureBearSSL.h>
+
+// Fingerprint for demo URL, expires on June 2, 2021, needs to be updated well before this date
+const uint8_t fingerprint[20] = {0x40, 0xaf, 0x00, 0x6b, 0xec, 0x90, 0x22, 0x41, 0x8e, 0xa3, 0xad, 0xfa, 0x1a, 0xe8, 0x25, 0x41, 0x1d, 0x1a, 0x54, 0xb3};
+
 
 //define your default values here, if there are different values in config.json, they are overwritten.
 char APIkey[33] = "L4QLVQ1LOKCQX2193VSEICXW61NP6B1O";
@@ -96,6 +106,31 @@ bool newday = false;    // must be false first time
 WiFiServer server(80);
 String header_web = "";
 
+// Root CA - used by solar edge
+const char* root_ca= \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n" \
+"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n" \
+"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD\n" \
+"QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT\n" \
+"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n" \
+"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG\n" \
+"9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB\n" \
+"CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97\n" \
+"nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt\n" \
+"43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P\n" \
+"T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4\n" \
+"gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO\n" \
+"BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR\n" \
+"TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw\n" \
+"DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr\n" \
+"hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg\n" \
+"06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF\n" \
+"PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\n" \
+"YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\n" \
+"CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\n" \
+"-----END CERTIFICATE-----\n";
+
 
 //callback notifying us of the need to save config
 void saveConfigCallback () {
@@ -137,7 +172,7 @@ void setup() {
 				if (json.success()) {
 					Serial.println("\nparsed json");
 
-					strcpy(APIkey, json["APIkey"]);          
+					strcpy(APIkey, json["APIkey"]);
 					strcpy(siteID, json["siteID"]);
 
 					if(json["dhcp"]) {
@@ -145,7 +180,7 @@ void setup() {
 						dhcp=true;
 					} else{
 						Serial.println("Setting up wifi from Static IP config");
-					}        
+					}
 
 					if(json["ip"]) {
 						Serial.println("Last known ip from config");
@@ -165,7 +200,7 @@ void setup() {
 		Serial.println("failed to mount FS");
 	}
 	//end read
- 
+
 	WiFiManagerParameter custom_APIkey("APIkey", "APIkey", APIkey, 32);
 	WiFiManagerParameter custom_siteID("siteID", "siteID", siteID, 8);
 	WiFiManagerParameter custom_text("<p>Select Checkbox for DHCP  ");
@@ -183,13 +218,13 @@ void setup() {
 		_ip.fromString(static_ip);
 		_gw.fromString(static_gw);
 		_sn.fromString(static_sn);
-	
+
 		wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
 	}
 	else{
 		wifiManager.autoConnect("AutoConnectAP");
 	}
-	
+
 	wifiManager.addParameter(&custom_APIkey);
 	wifiManager.addParameter(&custom_siteID);
 	wifiManager.addParameter(&custom_text);
@@ -197,7 +232,7 @@ void setup() {
 	wifiManager.addParameter(&custom_text2);
 	wifiManager.addParameter(&custom_text3);
 	wifiManager.setMinimumSignalQuality();
-	
+
 	if (!wifiManager.autoConnect("AutoConnectAP")) {
 		Serial.println("failed to connect and hit timeout");
 		delay(3000);
@@ -224,7 +259,7 @@ void setup() {
 	Serial.println(WiFi.gatewayIP());
 	Serial.println(WiFi.subnetMask());
 	Serial.println(WiFi.dnsIP());
-	
+
 	dhcp = (strncmp(custom_dhcp.getValue(), "T", 1) == 0);
 
 	strcpy(APIkey, custom_APIkey.getValue());
@@ -242,7 +277,7 @@ void setup() {
 		json["ip"] = WiFi.localIP().toString();
 		json["gateway"] = WiFi.gatewayIP().toString();
 		json["subnet"] = WiFi.subnetMask().toString();
-		
+
 		File configFile = SPIFFS.open("/config.json", "w");
 		if (!configFile) {
 			Serial.println("failed to open config file for writing");
@@ -278,7 +313,7 @@ void webserver(){
 						client.println("Content-type:text/html");
 						client.println("Connection: close");
 						client.println();
-						
+
 						client.println("<!DOCTYPE html><html>");
 						client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
 						client.println("<title>SolarBridge</title>");
@@ -287,8 +322,8 @@ void webserver(){
 						client.println("p.small {line-height: 1; font-size:70%;}");
 						client.println(".button { background-color: #195B6A; border: none; color: white; padding: 10px 20px;");
 						client.println("text-decoration: none; font-size: 24px; margin: 2px; cursor: pointer;}</style>");
-						
-						
+
+
 						client.println("<script type=\"text/JavaScript\">");
 						client.println("<!--");
 						client.println("function TimedRefresh( t ) {setTimeout(\"location.reload(true);\", t);}");
@@ -299,7 +334,7 @@ void webserver(){
 						client.println("<h1>SolarBridge</h1>");
 						client.println("<hr>");
 						client.println("<p></p>");
-						 
+
 						if ((header_web.indexOf("GET /") >= 0) && (header_web.indexOf("GET /reset/") <0)) {
 
 							reset1 = false;
@@ -308,10 +343,10 @@ void webserver(){
 							client.println("<p class=\"small\">IP: " +WiFi.localIP().toString() + "<br>");
 							client.println("Gateway: " +WiFi.gatewayIP().toString()+ "<br>");
 							client.println("Subnet: " +WiFi.subnetMask().toString() + "<br><br>");
-	
+
 							client.println("APIkey: " + String(APIkey) + "<br>");
 							client.println("siteID: " + String(siteID) + "<br>");
-							
+
 							String YesNo = "No";
 							if (ConnectionPossible){
 									YesNo = "Yes";
@@ -320,14 +355,14 @@ void webserver(){
 							};
 							client.println("Connection Posssible: " + YesNo + "<br>");
 							client.println("1000 imp/kW</p>");
-	
+
 							client.println("<hr>");
 							client.println("<h1>Actual: " + String(ActualPower) + " Watt<br>");
 							client.println("Today: " + todayval + "<br>");
-							client.println("Month: " + monthval + "</h1>"); 
-							client.println("<hr>");    
+							client.println("Month: " + monthval + "</h1>");
+							client.println("<hr>");
 							client.println("<p> </p>");
-							
+
 							client.println("<p class=\"small\">EnergyfromDaytotal: "+ String(EnergyfromDaytotal)  + "<br>");
 							client.println("PulsesGenerated: "+ String(PulsesGenerated)  + "<br>");
 							client.println("NumberofPeriodSinceUpdate: "+ String(NumberofPeriodSinceUpdate)  + "<br>");
@@ -341,7 +376,7 @@ void webserver(){
 							client.println("Please connect to wifi network AutoConnectAP and after connect go to: 192.168.4.1 for configuration page </p>");
 							client.println("</body></html>");
 						}
-						
+
 						if (header_web.indexOf("GET /reset/req") >= 0) {
 							reset1 = true;
 							reset2 = false;
@@ -365,7 +400,7 @@ void webserver(){
 							client.println("<p>Please connect to wifi network AutoConnectAP and goto 192.168.4.1 for configuration</p>");
 							client.println("</body></html>");
 						}
-						
+
 						// Break out of the while loop
 						break;
 					} else { // if you got a newline, then clear currentLine
@@ -382,33 +417,31 @@ void webserver(){
 		client.stop();
 		Serial.println("Client disconnected.");
 		Serial.println("");
-	}  
+	}
 }
 
 
 void getdata(){
 	//get new data from the solaredge server.
-	
+
 	HTTPClient http;
 	const char * headerkeys[] = {"User-Agent","Set-Cookie","Cookie","Date","Content-Type","Connection"} ;
 	size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
 	String apiurl = "";
 	apiurl = "https://monitoringapi.solaredge.com/site/" +String(siteID) +"/overview.json?api_key=" +String(APIkey);
+	Serial.println(apiurl);
 
-	//char apiurl[250] = "url";
-	//sprintf(apiurl, "https://monitoringapi.solaredge.com/site/%s/overview.json?api_key=%s", siteID, APIkey);
- 
-	http.begin(apiurl); //Specify request destination
-	int httpCode = http.GET(); //Send the request
+	http.begin(apiurl,root_ca); 										//Specify request destination (https)
+	int httpCode = http.GET(); 											//Send the request
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
-		String payload = http.getString(); //Get the request response payload
-		Serial.println(payload); //Print the response payload
-
 		ConnectionPossible = true;
-		
+
+		String payload = http.getString(); 								//Get the request response payload
+		Serial.println(payload); 										//Print the response payload
+
 		const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
 		DynamicJsonBuffer jsonBuffer(capacity);
-	
+
 		JsonObject& root = jsonBuffer.parseObject(payload);
 		if (!root.success()) {
 			Serial.println("parseObject() failed");
@@ -434,18 +467,18 @@ void getdata(){
 				PulsesGenerated = 0;
 				NumberofPeriodSinceUpdate=0;
 				MaxNumberofCorrections= 0;
-				CorrectedPowerNextPeriod = 0;  
+				CorrectedPowerNextPeriod = 0;
 				PowerCorrection= 0;
 			}
 
 			if (!newday){
 				Serial.println("No new day registered yet so impossible to correct to current totals.");
 			}
-			
+
 			NumberofPeriodSinceUpdate++;
 			EnergyfromDaytotal = (int)(NewDayTotal *1000);  //increase energy read from solarEdge from the daytotals (in Wh)
 			if ((NewDayTotal != PrevDayTotal) && (PrevDayTotal != -1) && (newday==true)){
-						
+
 				Serial.print("EnergyfromDaytotal :");
 				Serial.println(EnergyfromDaytotal);
 
@@ -453,12 +486,12 @@ void getdata(){
 				Serial.println(PulsesGenerated); //energy accounted for by pulses since last update (in Wh)
 
 				float EnergytobeCorrected = EnergyfromDaytotal - PulsesGenerated;
-				
+
 				Serial.print("EnergytobeCorrected :");
 				Serial.println(EnergytobeCorrected); //energy accounted for by pulses since last update (in Wh)
 
 				Serial.print("NumberofPeriodSinceUpdate :");
-				Serial.println(NumberofPeriodSinceUpdate); 
+				Serial.println(NumberofPeriodSinceUpdate);
 
 				PowerCorrection = (EnergytobeCorrected/NumberofPeriodSinceUpdate); //Correction of Power in W
 				Serial.print("PowerCorrection :");
@@ -500,7 +533,7 @@ void getdata(){
 			}
 			Getdatafrequencyset = Getdatafrequency;
 		}
-	} 
+	}
 	http.end(); //Close connection
 }
 
@@ -514,7 +547,7 @@ void blinkled() {
 
 void loop() {
 	webserver();
- 
+
 	if ((reset1) && (reset2)) { //all reset pages have been acknowledged and reset parameters have been set from the webpages
 		delay(2000);
 		Serial.println("Reset requested");
@@ -525,7 +558,7 @@ void loop() {
 		delay(500);
 		ESP.reset();
 	}
-	
+
 	currentMillis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
 	if (currentMillis - startMillis >= period) { //test whether the pulsetime has eleapsed
 
@@ -543,7 +576,7 @@ void loop() {
 		period = timebetweenpulses;
 		startMillis = currentMillis;  //IMPORTANT to save the start time of the current LED state.
 	}
-	
+
 	currentMillis2 = millis();  //get the current "time" (actually the number of milliseconds since the program started)
 	if (currentMillis2 - startMillis2 >= Getdatafrequencyset) { //test whether the period has elapsed to get new data from the server
 		if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
