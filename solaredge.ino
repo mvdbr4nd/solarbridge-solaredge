@@ -1,5 +1,5 @@
 /******************************************************************************************
- * SolarBridge - SolarEdge 1.0 (MvdB)
+ * SolarBridge - SolarEdge 1.4 (MvdB)
  * Forked from SolarBridge v2.2.1 by Oepi-Loepi
  *
  *
@@ -34,9 +34,10 @@
  *
  * https fingerprints
  * SHA 256: 5B 8C 38 37 29 89 84 6F 24 9B A7 EE 85 21 C3 A7 EB 7C C3 37 6D 56 36 A5 23 0A 31 CE 6A 90 9E C8
- * SHA 1:   69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF
- *
+ * SHA1 Fingerprint=69:01:51:C2:49:16:4A:38:93:FA:7C:A8:E4:BC:61:9A:25:4B:98:BF
+ * 
 */
+
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -50,8 +51,9 @@
 #include <WiFiClientSecureBearSSL.h>
 
 //define your default values here, if there are different values in config.json, they are overwritten.
-char APIkey[33] = "L4QLVQ1LOKCQX2193VSEICXW61NP6B1O";
-char siteID[8] = "1234567";
+String APIkey = "FILLME";
+String siteID = "FILLME";
+String fingerprint = "69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF"
 
 char static_ip[18] = "192.168.0.58";
 char static_gw[18] = "192.168.0.1";
@@ -102,32 +104,6 @@ bool newday = false;    // must be false first time
 WiFiServer server(80);
 String header_web = "";
 
-// Root CA - used by solaredge valid till 2031
-const char* root_ca= \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n" \
-"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n" \
-"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD\n" \
-"QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT\n" \
-"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n" \
-"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG\n" \
-"9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB\n" \
-"CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97\n" \
-"nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt\n" \
-"43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P\n" \
-"T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4\n" \
-"gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO\n" \
-"BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR\n" \
-"TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw\n" \
-"DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr\n" \
-"hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg\n" \
-"06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF\n" \
-"PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\n" \
-"YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\n" \
-"CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\n" \
-"-----END CERTIFICATE-----\n";
-
-
 //callback notifying us of the need to save config
 void saveConfigCallback () {
 	Serial.println("Should save config");
@@ -168,9 +144,6 @@ void setup() {
 				if (json.success()) {
 					Serial.println("\nparsed json");
 
-					strcpy(APIkey, json["APIkey"]);
-					strcpy(siteID, json["siteID"]);
-
 					if(json["dhcp"]) {
 						Serial.println("Setting up wifi from dhcp config");
 						dhcp=true;
@@ -197,8 +170,6 @@ void setup() {
 	}
 	//end read
 
-	WiFiManagerParameter custom_APIkey("APIkey", "APIkey", APIkey, 32);
-	WiFiManagerParameter custom_siteID("siteID", "siteID", siteID, 8);
 	WiFiManagerParameter custom_text("<p>Select Checkbox for DHCP  ");
 	WiFiManagerParameter custom_text2("</p><p>DHCP will be effective after reset (power off/on)</p>");
 	WiFiManagerParameter custom_text3("</p><p>So first wait for a minute after saving and then reboot by removing power.</p>");
@@ -221,8 +192,6 @@ void setup() {
 		wifiManager.autoConnect("AutoConnectAP");
 	}
 
-	wifiManager.addParameter(&custom_APIkey);
-	wifiManager.addParameter(&custom_siteID);
 	wifiManager.addParameter(&custom_text);
 	wifiManager.addParameter(&custom_dhcp);
 	wifiManager.addParameter(&custom_text2);
@@ -258,18 +227,12 @@ void setup() {
 
 	dhcp = (strncmp(custom_dhcp.getValue(), "T", 1) == 0);
 
-	strcpy(APIkey, custom_APIkey.getValue());
-	strcpy(siteID, custom_siteID.getValue());
-
 	//save the custom parameters to FS
 	if (shouldSaveConfig) {
 		Serial.println("saving config");
 		StaticJsonBuffer<200> jsonBuffer;
 		JsonObject& json = jsonBuffer.createObject();
-		json["APIkey"] = APIkey;
-		json["siteID"] = siteID;
 		json["dhcp"] = dhcp;
-
 		json["ip"] = WiFi.localIP().toString();
 		json["gateway"] = WiFi.gatewayIP().toString();
 		json["subnet"] = WiFi.subnetMask().toString();
@@ -422,15 +385,15 @@ void getdata(){
 	const char * headerkeys[] = {"User-Agent","Set-Cookie","Cookie","Date","Content-Type","Connection"} ;
 	size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
 	String apiurl = "";
-	apiurl = "https://monitoringapi.solaredge.com/site/" +String(siteID) +"/overview.json?api_key=" +String(APIkey);
-	Serial.println(apiurl);
+	apiurl = "https://monitoringapi.solaredge.com/site/" +siteID +"/overview.json?api_key=" +APIkey;
+	http.begin(apiurl, fingerprint); 
 
-	http.begin(apiurl, root_ca); 
 	int httpCode = http.GET();
+    Serial.println(httpCode);
+  
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
 		ConnectionPossible = true;
 		String payload = http.getString();
-		Serial.println(payload);
 
 		const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
 		DynamicJsonBuffer jsonBuffer(capacity);
@@ -440,9 +403,12 @@ void getdata(){
 			Serial.println("parseObject() failed");
 		}
 		else {
-			ActualPower  = root["overview"]["currentpower"]["power"];
-			float MonthValue  = root["overview"]["lastMonthData"]["enery"];
-			NewDayTotal = root["overview"]["lastDayData"]["todayValue"];
+			ActualPower  = root["overview"]["currentPower"]["power"];
+			float MonthValue  = root["overview"]["lastMonthData"]["energy"];
+			NewDayTotal = root["overview"]["lastDayData"]["energy"];
+
+      NewDayTotal = NewDayTotal / 1000;
+      MonthValue = MonthValue / 1000;
 
 			todayval = String(NewDayTotal)+ " KWh";
 			monthval = String(MonthValue)+ " KWh";
