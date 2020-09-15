@@ -1,5 +1,5 @@
 /******************************************************************************************
- * SolarBridge - SolarEdge 1.4 (MvdB)
+ * SolarBridge - SolarEdge 1.0 (MvdB)
  * Forked from SolarBridge v2.2.1 by Oepi-Loepi
  *
  *
@@ -35,9 +35,7 @@
  * https fingerprints
  * SHA 256: 5B 8C 38 37 29 89 84 6F 24 9B A7 EE 85 21 C3 A7 EB 7C C3 37 6D 56 36 A5 23 0A 31 CE 6A 90 9E C8
  * SHA1 Fingerprint=69:01:51:C2:49:16:4A:38:93:FA:7C:A8:E4:BC:61:9A:25:4B:98:BF
- * 
 */
-
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -53,7 +51,7 @@
 //define your default values here, if there are different values in config.json, they are overwritten.
 String APIkey = "FILLME";
 String siteID = "FILLME";
-String fingerprint = "69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF"
+String fingerprint = "69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF";
 
 char static_ip[18] = "192.168.0.58";
 char static_gw[18] = "192.168.0.1";
@@ -144,6 +142,9 @@ void setup() {
 				if (json.success()) {
 					Serial.println("\nparsed json");
 
+					//strcpy(APIkey, json["APIkey"]);
+					//strcpy(siteID, json["siteID"]);
+
 					if(json["dhcp"]) {
 						Serial.println("Setting up wifi from dhcp config");
 						dhcp=true;
@@ -170,6 +171,8 @@ void setup() {
 	}
 	//end read
 
+	//WiFiManagerParameter custom_APIkey("APIkey", "APIkey", APIkey, 32);
+	//WiFiManagerParameter custom_siteID("siteID", "siteID", siteID, 8);
 	WiFiManagerParameter custom_text("<p>Select Checkbox for DHCP  ");
 	WiFiManagerParameter custom_text2("</p><p>DHCP will be effective after reset (power off/on)</p>");
 	WiFiManagerParameter custom_text3("</p><p>So first wait for a minute after saving and then reboot by removing power.</p>");
@@ -192,6 +195,8 @@ void setup() {
 		wifiManager.autoConnect("AutoConnectAP");
 	}
 
+	//wifiManager.addParameter(&custom_APIkey);
+	//wifiManager.addParameter(&custom_siteID);
 	wifiManager.addParameter(&custom_text);
 	wifiManager.addParameter(&custom_dhcp);
 	wifiManager.addParameter(&custom_text2);
@@ -227,11 +232,16 @@ void setup() {
 
 	dhcp = (strncmp(custom_dhcp.getValue(), "T", 1) == 0);
 
+	//strcpy(APIkey, custom_APIkey.getValue());
+	//strcpy(siteID, custom_siteID.getValue());
+
 	//save the custom parameters to FS
 	if (shouldSaveConfig) {
 		Serial.println("saving config");
 		StaticJsonBuffer<200> jsonBuffer;
 		JsonObject& json = jsonBuffer.createObject();
+		//json["APIkey"] = APIkey;
+		//json["siteID"] = siteID;
 		json["dhcp"] = dhcp;
 		json["ip"] = WiFi.localIP().toString();
 		json["gateway"] = WiFi.gatewayIP().toString();
@@ -387,14 +397,11 @@ void getdata(){
 	String apiurl = "";
 	apiurl = "https://monitoringapi.solaredge.com/site/" +siteID +"/overview.json?api_key=" +APIkey;
 	http.begin(apiurl, fingerprint); 
-
+	
 	int httpCode = http.GET();
-    Serial.println(httpCode);
-  
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
 		ConnectionPossible = true;
 		String payload = http.getString();
-
 		const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
 		DynamicJsonBuffer jsonBuffer(capacity);
 
@@ -407,8 +414,8 @@ void getdata(){
 			float MonthValue  = root["overview"]["lastMonthData"]["energy"];
 			NewDayTotal = root["overview"]["lastDayData"]["energy"];
 
-      NewDayTotal = NewDayTotal / 1000;
-      MonthValue = MonthValue / 1000;
+			NewDayTotal = NewDayTotal / 1000;
+			MonthValue = MonthValue / 1000;
 
 			todayval = String(NewDayTotal)+ " KWh";
 			monthval = String(MonthValue)+ " KWh";
