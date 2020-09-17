@@ -22,7 +22,9 @@ void getdata() {
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
 		ConnectionPossible = true;
 		String payload = http.getString();
-		const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
+		
+		//const size_t capacity = 5*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7);
+		const size_t capacity = 474;
 
 		DynamicJsonDocument jsonBuffer(capacity);
 		auto error = deserializeJson(jsonBuffer, payload);
