@@ -11,7 +11,8 @@ bool ConnectionPossible=false;
 bool reset1 = false;
 bool reset2 = false;
 
-int led = D2; 
+//set the following to "D2" if you want to toggle Pin D2 or LED_BUILTIN if you rather want to toggle the led on the print
+int led = LED_BUILTIN;  
 int meteradapter = D1; 
 
 unsigned long startMillis;    //some global variables available anywhere in the program
@@ -57,7 +58,7 @@ void setup() {
 	digitalWrite(LED_BUILTIN, HIGH);
 	
 	pinMode(led, OUTPUT);
-  	digitalWrite(led, HIGH);
+  	digitalWrite(led, LOW);
   	
 	pinMode(meteradapter, OUTPUT);
   	digitalWrite(meteradapter, HIGH);
@@ -99,6 +100,7 @@ void setup() {
 	}
 
 	// setup wifi
+	WiFiManagerParameter custom_text("<p>Please specify your SolarEdge credentials</p>");
 	WiFiManagerParameter cust_key("API key", "apikey", apikey, 60);
 	WiFiManagerParameter cust_id("Site Id", "siteid", siteid, 60);
 
@@ -135,7 +137,7 @@ void setup() {
 
 		doc["apikey"] = apikey;
 		doc["siteid"] = siteid;
-		
+
 		File configFile = SPIFFS.open("/config.json", "w");
 		if (!configFile) {
 			Serial.println("failed to open config file for writing");
@@ -156,13 +158,23 @@ void setup() {
 }
 
 void blinkled() {
-	digitalWrite(led, HIGH);    
+	if (led != LED_BUILTIN) {
+		digitalWrite(led, HIGH);    
+	}
+	else {
+		digitalWrite(led, LOW);    
+	}
+	
 	digitalWrite(meteradapter, HIGH);
-	//digitalWrite(LED_BUILTIN, LOW);
 	delay(100);                             
-	digitalWrite(led, LOW);        
 	digitalWrite(meteradapter, LOW);
-	//digitalWrite(LED_BUILTIN, HIGH);
+	
+	if (led != LED_BUILTIN) {
+		digitalWrite(led, LOW);
+	} 
+	else {
+		digitalWrite(led, HIGH);
+	}	
 }
 
 void loop() {
