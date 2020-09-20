@@ -103,6 +103,7 @@ void getdata() {
 			Serial.println(ActualPower);
 
 			if (ActualPower > 1) {
+				ActualPowerZero = false;
 				if (NumberofPeriodSinceUpdate <= MaxNumberofCorrections){
 					CorrectedPowerNextPeriod =   ActualPower +  PowerCorrection;
 				}
@@ -119,6 +120,7 @@ void getdata() {
 			}
 			else{
 				//1 hour interval when ActualPower = 0
+				ActualPowerZero = true;
 				timebetweenpulses = 360000; 
 				CorrectedPowerNextPeriod = 0;
 				PowerCorrection = 0;

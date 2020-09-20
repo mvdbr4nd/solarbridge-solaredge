@@ -30,5 +30,6 @@ extern int EnergyfromDaytotal;
 extern float CorrectedPowerNextPeriod;
 extern int MaxNumberofCorrections;
 extern bool newday;    
+extern bool ActualPowerZero;
 
 extern WiFiServer server;

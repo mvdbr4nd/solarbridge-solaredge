@@ -25,6 +25,7 @@ unsigned long Getdatafrequency = 60000; //time between data transfers from GroWa
 unsigned long Getdatafrequencyset = 0; //time between data transfers from GroWatt
 unsigned long timebetweenpulses = 2000; //time between pulses calculated (initial)
 bool shouldSaveConfig = false;
+bool ActualPowerZero = false;
 
 int PulsesGenerated = 0;    //pulses generated in the periods from last change    (when blink, PulsesGenerated++ and reset after calculation of correction)
 float NewDayTotal = -1;
@@ -203,7 +204,9 @@ void loop() {
 		Serial.print(" ** timebetw.pulses: ");Serial.print(timebetweenpulses);
 		Serial.print(" ** newday: ");Serial.println(newday);
 
-		blinkled();
+		if (!ActualPowerZero) {
+			blinkled();
+		}
 		PulsesGenerated++;
 		period = timebetweenpulses;
 		startMillis = currentMillis;    //IMPORTANT to save the start time of the current LED state.
