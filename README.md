@@ -1,4 +1,4 @@
-# SolarBridge - Growatt for platformio version
+# SolarBridge - SolarEdge for platformio version
 
 solarbridge for solaredge on wemos d mini (or ESP8266)
 This project is based on the solarbridge - growatt version and is changed to use the solaredge API. To build this project please use PlatformIO which will take care of all required libraries automaticly. This sketch is used on a WEMOS D mini (ESP8266) to hook up with an Eneco Meter Adapter in order to provide solar power production for ZonOpToon without using expensive kwh hardware.
