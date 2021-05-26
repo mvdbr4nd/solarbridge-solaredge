@@ -7,16 +7,16 @@ String todayval = "Not Connected Yet";
 String monthval= "Not Connected Yet";
 bool cookiestep= false;
 
-String fingerprint = "69 01 51 C2 49 16 4A 38 93 FA 7C A8 E4 BC 61 9A 25 4B 98 BF";
-
 void getdata() {
 	//get new data from the solaredge server.
+	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+	client->setInsecure();
 	HTTPClient http;
 	const char * headerkeys[] = {"User-Agent","Set-Cookie","Cookie","Date","Content-Type","Connection"} ;
 	size_t headerkeyssize = sizeof(headerkeys)/sizeof(char*);
 	String apiurl = "";
 	apiurl = "https://monitoringapi.solaredge.com/site/" +String(siteid) +"/overview.json?api_key=" +String(apikey);
-	http.begin(apiurl, fingerprint); 
+	http.begin(*client, apiurl); 
 	
 	int httpCode = http.GET();
 	if ((httpCode=200) || (httpCode = 301) || (httpCode = 302)){
